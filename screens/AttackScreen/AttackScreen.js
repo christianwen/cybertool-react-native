@@ -15,24 +15,17 @@ export default class App extends React.Component {
       strength: 10,
       duration: 20,
       isAttacking: false,
-      idToken: null,
-      quota: {
-        free_quota: 0,
-        paid_quota: 0
-      },
-      used_quota: 0
+      idToken: null
     }
   }
 
   async componentDidMount(){
     const currentSession = await Auth.currentSession();
-    const { idToken: { jwtToken, payload: { sub } } } = currentSession;
-    const username = sub;
-    const { data } = await axios.get(`${ENDPOINT}/quota?username=${username}`);
+    const { idToken: { jwtToken } } = currentSession;
+    const username = this.props.screenProps.username;
     this.setState(prevState => ({
       ...prevState,
       idToken: jwtToken,
-      quota: data,
       username: username
     }))
   }
@@ -46,17 +39,18 @@ export default class App extends React.Component {
       },
       buttonIndex => {
         if(buttonIndex==0){
-          axios.get(`${ENDPOINT}/quota?username=${this.state.username}&type=get_free_quota`)
+          axios.get(`${ENDPOINT}/quota?username=${this.props.screenProps.username}&type=get_free_quota`)
             .then(({data}) => {
               if(data.success){
                 alert('Reset free quota to 600 seconds');
-                this.setState(prevState => ({
+                /*this.setState(prevState => ({
                   ...prevState,
                   quota: {
                     ...prevState.quota,
                     free_quota: 600
                   }
-                }))
+                }))*/
+                this.props.screenProps.resetQuota({free_quota: 600})
               } else alert(data.error);
             }).catch(error => console.log(error))
           
@@ -82,6 +76,7 @@ export default class App extends React.Component {
 
   startAttack = () => {
     const { target, duration, strength, idToken } = this.state;
+    const { screenProps: { resetQuota, used_quota } } = this.props;
     const url = `${ENDPOINT}/attack?target=${target}&duration=${duration || 20}&strength=${strength || 10}&id_token=${idToken}`;
     this.toggleAttackingMode();
     let responseData;
@@ -109,11 +104,12 @@ export default class App extends React.Component {
     }, 5000);
     setTimeout(() => {
       clearInterval(interval);
-      this.setState(prevState => ({
+      /*this.setState(prevState => ({
         ...prevState,
         result,
         used_quota: prevState.used_quota + duration
-      }))
+      }))*/
+      this.props.screenProps.resetQuota();
     }, duration*1000);
   }
 
@@ -126,6 +122,7 @@ export default class App extends React.Component {
 
   render() {
     const { strength, duration } = this.state;
+    const { screenProps: { quota } } = this.props;
     return (
       <Root>
       <Container>
@@ -133,15 +130,14 @@ export default class App extends React.Component {
           <Left style = {{marginLeft: 10}}>
             <Title>CyberTool</Title>
           </Left>
-          { this.state.quota &&
           <Right>
             <TouchableWithoutFeedback
               onPress = {this.quotaActionSheet()}
             >
-              <Title>{this.state.quota.free_quota + this.state.quota.paid_quota - this.state.used_quota}s</Title>
+              <Title>{quota.free_quota + quota.paid_quota }s</Title>
             </TouchableWithoutFeedback>
           </Right>
-          }
+        
         </Header>
         <Content>
           <Form>
